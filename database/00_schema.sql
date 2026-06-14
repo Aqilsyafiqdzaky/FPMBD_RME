@@ -24,11 +24,10 @@ DROP FUNCTION IF EXISTS hitung_total_obat;
 DROP FUNCTION IF EXISTS riwayat_alergi_pasien;
 
 DROP TABLE IF EXISTS Log_Audit_Rekam_Medis;
-DROP TABLE IF EXISTS Pembayaran;
 DROP TABLE IF EXISTS Detail_Pembayaran;
-DROP TABLE IF EXISTS Obat_Resep;
-DROP TABLE IF EXISTS Resep;
+DROP TABLE IF EXISTS Pembayaran;
 DROP TABLE IF EXISTS Detail_Resep;
+DROP TABLE IF EXISTS Resep;
 DROP TABLE IF EXISTS Tindakan_Medis;
 DROP TABLE IF EXISTS Diagnosa;
 DROP TABLE IF EXISTS Rekam_Medis;
@@ -219,23 +218,13 @@ CREATE TABLE Tindakan_Medis (
         ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE Detail_Resep (
-    id_detail_resep CHAR(5) PRIMARY KEY,
-    jumlah_obat INT NOT NULL,
-    dosis_obat VARCHAR(50) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
 CREATE TABLE Resep (
     id_resep CHAR(5) PRIMARY KEY,
     tanggal_resep DATETIME NOT NULL,
     Rekam_Medis_id_rekam_medis CHAR(5) NOT NULL,
-    Detail_Resep_id_detail_resep CHAR(5) NOT NULL,
     CONSTRAINT fk_resep_rm FOREIGN KEY (Rekam_Medis_id_rekam_medis)
         REFERENCES Rekam_Medis(id_rekam_medis)
-        ON UPDATE CASCADE ON DELETE CASCADE,
-    CONSTRAINT fk_resep_detail FOREIGN KEY (Detail_Resep_id_detail_resep)
-        REFERENCES Detail_Resep(id_detail_resep)
-        ON UPDATE CASCADE ON DELETE RESTRICT
+        ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE Obat (
@@ -245,16 +234,18 @@ CREATE TABLE Obat (
     harga_obat DECIMAL(10,2) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE Obat_Resep (
-    Obat_id_obat CHAR(5) NOT NULL,
+CREATE TABLE Detail_Resep (
+    id_detail_resep BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     Resep_id_resep CHAR(5) NOT NULL,
-    PRIMARY KEY (Obat_id_obat, Resep_id_resep),
-    CONSTRAINT fk_or_obat FOREIGN KEY (Obat_id_obat)
-        REFERENCES Obat(id_obat)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT fk_or_resep FOREIGN KEY (Resep_id_resep)
+    Obat_id_obat CHAR(5) NOT NULL,
+    jumlah_obat INT NOT NULL,
+    dosis_obat VARCHAR(50) NOT NULL,
+    CONSTRAINT fk_dr_resep FOREIGN KEY (Resep_id_resep)
         REFERENCES Resep(id_resep)
-        ON UPDATE CASCADE ON DELETE CASCADE
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_dr_obat FOREIGN KEY (Obat_id_obat)
+        REFERENCES Obat(id_obat)
+        ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE Jenis_Pembayaran (
@@ -268,24 +259,6 @@ CREATE TABLE Asuransi (
     jenis_asuransi VARCHAR(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE TABLE Detail_Pembayaran (
-    id_detail_pembayaran CHAR(5) PRIMARY KEY,
-    keterangan_biaya VARCHAR(100) NOT NULL,
-    sub_total DECIMAL(12,2) NOT NULL,
-    Tindakan_Medis_id_tindakan_medis CHAR(5) NULL,
-    Rawat_Inap_id_rawat_inap CHAR(5) NULL,
-    Resep_id_resep CHAR(5) NULL,
-    CONSTRAINT fk_dp_tindakan FOREIGN KEY (Tindakan_Medis_id_tindakan_medis)
-        REFERENCES Tindakan_Medis(id_tindakan_medis)
-        ON UPDATE CASCADE ON DELETE SET NULL,
-    CONSTRAINT fk_dp_rawat FOREIGN KEY (Rawat_Inap_id_rawat_inap)
-        REFERENCES Rawat_Inap(id_rawat_inap)
-        ON UPDATE CASCADE ON DELETE SET NULL,
-    CONSTRAINT fk_dp_resep FOREIGN KEY (Resep_id_resep)
-        REFERENCES Resep(id_resep)
-        ON UPDATE CASCADE ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
 CREATE TABLE Pembayaran (
     id_pembayaran CHAR(5) PRIMARY KEY,
     total_biaya DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -293,7 +266,6 @@ CREATE TABLE Pembayaran (
     Registrasi_id_registrasi CHAR(5) NOT NULL,
     Jenis_Pembayaran_id_jenis_pembayaran CHAR(5) NOT NULL,
     Asuransi_nomor_asuransi CHAR(13) NULL,
-    Detail_Pembayaran_id_detail_pembayaran CHAR(5) NOT NULL,
     CONSTRAINT fk_pembayaran_registrasi FOREIGN KEY (Registrasi_id_registrasi)
         REFERENCES Registrasi(id_registrasi)
         ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -303,8 +275,27 @@ CREATE TABLE Pembayaran (
     CONSTRAINT fk_pembayaran_asuransi FOREIGN KEY (Asuransi_nomor_asuransi)
         REFERENCES Asuransi(nomor_asuransi)
         ON UPDATE CASCADE ON DELETE SET NULL,
-    CONSTRAINT fk_pembayaran_detail FOREIGN KEY (Detail_Pembayaran_id_detail_pembayaran)
-        REFERENCES Detail_Pembayaran(id_detail_pembayaran)
-        ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT uq_pembayaran_registrasi UNIQUE (Registrasi_id_registrasi)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE Detail_Pembayaran (
+    id_detail_pembayaran BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    Pembayaran_id_pembayaran CHAR(5) NOT NULL,
+    keterangan_biaya VARCHAR(100) NOT NULL,
+    sub_total DECIMAL(12,2) NOT NULL,
+    Tindakan_Medis_id_tindakan_medis CHAR(5) NULL,
+    Rawat_Inap_id_rawat_inap CHAR(5) NULL,
+    Resep_id_resep CHAR(5) NULL,
+    CONSTRAINT fk_dp_pembayaran FOREIGN KEY (Pembayaran_id_pembayaran)
+        REFERENCES Pembayaran(id_pembayaran)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_dp_tindakan FOREIGN KEY (Tindakan_Medis_id_tindakan_medis)
+        REFERENCES Tindakan_Medis(id_tindakan_medis)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT fk_dp_rawat FOREIGN KEY (Rawat_Inap_id_rawat_inap)
+        REFERENCES Rawat_Inap(id_rawat_inap)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CONSTRAINT fk_dp_resep FOREIGN KEY (Resep_id_resep)
+        REFERENCES Resep(id_resep)
+        ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

@@ -115,13 +115,12 @@ CALL buat_rekam_medis(
     'RM000', 'Demam tinggi dan pusing kepala', 'R0001', 'D0001', 'N0001', 'RI001',
     'DG001', 'Demam Dengue', 'Gejala awal demam berdarah',
     'T0001', 'Pemeriksaan Darah Lengkap', 150000.00, 'Trombosit menurun',
-    TRUE, 'RS001', 'DR001', 2, '3x1 tablet'
+    TRUE, 'RS001'
 );
 
 SELECT * FROM Rekam_Medis;
 SELECT * FROM Diagnosa;
 SELECT * FROM Tindakan_Medis;
-SELECT * FROM Detail_Resep;
 SELECT * FROM Resep;
 
 -- Rawat Jalan tetap dapat memiliki rekam medis, diagnosa, tindakan, dan resep.
@@ -129,16 +128,16 @@ CALL buat_rekam_medis(
     'RM000', 'Batuk ringan selama tiga hari', 'R0002', 'D0001', 'N0001', NULL,
     'DG002', 'Infeksi Saluran Pernapasan Atas', 'Gejala ringan tanpa rawat inap',
     'T0002', 'Pemeriksaan Umum', 75000.00, 'Kondisi stabil',
-    TRUE, 'RS002', 'DR002', 3, '2x1 tablet'
+    TRUE, 'RS002'
 );
 
 
 -- 7. Uji Coba Trigger Mengurangi Stok Obat & Validasi Stok Obat
 SELECT stok_obat FROM Obat WHERE id_obat = 'O0001'; -- Stok awal 100
 
--- Kaitkan obat dengan resep (Trigger validation & reduction berjalan)
-INSERT INTO Obat_Resep (Obat_id_obat, Resep_id_resep) VALUES ('O0001', 'RS001');
-INSERT INTO Obat_Resep (Obat_id_obat, Resep_id_resep) VALUES ('O0001', 'RS002');
+-- Kaitkan obat dengan resep melalui Detail_Resep (Trigger validation & reduction berjalan)
+INSERT INTO Detail_Resep (Resep_id_resep, Obat_id_obat, jumlah_obat, dosis_obat) VALUES ('RS001', 'O0001', 2, '3x1 tablet');
+INSERT INTO Detail_Resep (Resep_id_resep, Obat_id_obat, jumlah_obat, dosis_obat) VALUES ('RS002', 'O0001', 3, '2x1 tablet');
 
 SELECT stok_obat FROM Obat WHERE id_obat = 'O0001'; -- Seharusnya berkurang 5 menjadi 95
 
@@ -148,20 +147,22 @@ SELECT hitung_total_obat('RS001') AS Total_Obat_Resep;
 
 
 -- 9. Uji Coba Stored Procedure Pembayaran & Trigger Sinkronisasi Total
--- Buat detail pembayaran terlebih dahulu
-INSERT INTO Detail_Pembayaran (id_detail_pembayaran, keterangan_biaya, sub_total, Tindakan_Medis_id_tindakan_medis, Rawat_Inap_id_rawat_inap, Resep_id_resep) VALUES
-('DP001', 'Biaya Tindakan, Rawat Inap & Obat', 250000.00, 'T0001', 'RI001', 'RS001'),
-('DP002', 'Biaya Rawat Jalan & Obat', 100000.00, 'T0002', NULL, 'RS002');
+-- Proses Pembayaran terlebih dahulu
+CALL proses_pembayaran('PY001', 'R0001', 'JP001', 'ASR0000000001');
+CALL proses_pembayaran('PY002', 'R0002', 'JP001', NULL);
 
--- Proses Pembayaran
-CALL proses_pembayaran('PY001', 'R0001', 'JP001', 'ASR0000000001', 'DP001');
-CALL proses_pembayaran('PY002', 'R0002', 'JP001', NULL, 'DP002');
+-- Buat detail pembayaran (Trigger akan mensinkronisasi total)
+INSERT INTO Detail_Pembayaran (Pembayaran_id_pembayaran, keterangan_biaya, sub_total, Tindakan_Medis_id_tindakan_medis, Rawat_Inap_id_rawat_inap, Resep_id_resep) VALUES
+('PY001', 'Biaya Tindakan, Rawat Inap & Obat', 250000.00, 'T0001', 'RI001', 'RS001'),
+('PY002', 'Biaya Rawat Jalan & Obat', 100000.00, 'T0002', NULL, 'RS002');
 
--- Cek pembayaran (total_biaya seharusnya otomatis sinkron dengan sub_total DP001)
+
+-- Cek pembayaran (total_biaya seharusnya otomatis sinkron dengan sub_total)
 SELECT * FROM Pembayaran;
 
 -- Update sub_total pada Detail_Pembayaran (Seharusnya mengupdate total_biaya di Pembayaran lewat trigger)
-UPDATE Detail_Pembayaran SET sub_total = 275000.00 WHERE id_detail_pembayaran = 'DP001';
+-- Asumsi ID Detail_Pembayaran auto_increment dimulai dari 1
+UPDATE Detail_Pembayaran SET sub_total = 275000.00 WHERE id_detail_pembayaran = 1;
 SELECT * FROM Pembayaran; -- Seharusnya total_biaya berubah menjadi 275000.00
 
 
@@ -178,4 +179,3 @@ UPDATE Rawat_Inap SET tanggal_keluar = '2026-06-12 12:00:00' WHERE id_rawat_inap
 
 -- Cek status kamar sekarang (Seharusnya kembali 'Kosong' karena trigger)
 SELECT cek_ketersediaan_kamar('K0001') AS Status_Kamar;
-

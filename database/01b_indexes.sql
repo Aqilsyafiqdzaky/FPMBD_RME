@@ -23,11 +23,11 @@ CREATE INDEX idx_rekam_medis_rawat_inap ON Rekam_Medis (Rawat_Inap_id_rawat_inap
 CREATE INDEX idx_diagnosa_rekam_medis ON Diagnosa (Rekam_Medis_id_rekam_medis);
 CREATE INDEX idx_tindakan_medis_rekam_medis ON Tindakan_Medis (Rekam_Medis_id_rekam_medis);
 CREATE INDEX idx_resep_rekam_medis ON Resep (Rekam_Medis_id_rekam_medis);
-CREATE INDEX idx_resep_detail_resep ON Resep (Detail_Resep_id_detail_resep);
+CREATE INDEX idx_detail_resep_resep ON Detail_Resep (Resep_id_resep);
 CREATE INDEX idx_detail_pembayaran_rawat_inap ON Detail_Pembayaran (Rawat_Inap_id_rawat_inap);
 CREATE INDEX idx_detail_pembayaran_resep ON Detail_Pembayaran (Resep_id_resep);
 CREATE INDEX idx_detail_pembayaran_tindakan ON Detail_Pembayaran (Tindakan_Medis_id_tindakan_medis);
+CREATE INDEX idx_detail_pembayaran_pembayaran ON Detail_Pembayaran (Pembayaran_id_pembayaran);
 CREATE INDEX idx_pembayaran_registrasi ON Pembayaran (Registrasi_id_registrasi);
 CREATE INDEX idx_pembayaran_jenis ON Pembayaran (Jenis_Pembayaran_id_jenis_pembayaran);
 CREATE INDEX idx_pembayaran_asuransi ON Pembayaran (Asuransi_nomor_asuransi);
-CREATE INDEX idx_pembayaran_detail ON Pembayaran (Detail_Pembayaran_id_detail_pembayaran);

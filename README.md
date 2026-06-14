@@ -128,5 +128,5 @@ SELECT id_obat, stok_obat FROM Obat;
 SELECT py.id_pembayaran, py.total_biaya, dp.sub_total
 FROM Pembayaran py
 JOIN Detail_Pembayaran dp
-  ON dp.id_detail_pembayaran = py.Detail_Pembayaran_id_detail_pembayaran;
+  ON dp.Pembayaran_id_pembayaran = py.id_pembayaran;
 ```

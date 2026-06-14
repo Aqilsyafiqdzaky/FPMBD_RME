@@ -6,11 +6,10 @@ if ($action === 'store') {
     try {
         $buatResep = isset($_POST['buat_resep']) && $_POST['buat_resep'] === '1';
         $idResep = $buatResep ? $_POST['id_resep'] : null;
-        $idDetailResep = $buatResep ? $_POST['id_detail_resep'] : null;
         $jumlahObat = $buatResep ? (int)$_POST['jumlah_obat'] : 0;
         $dosisObat = $buatResep ? $_POST['dosis_obat'] : null;
 
-        execute('CALL buat_rekam_medis(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+        execute('CALL buat_rekam_medis(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
             $_POST['id_rekam_medis'],
             $_POST['keluhan_pasien'],
             $_POST['id_registrasi'],
@@ -26,13 +25,10 @@ if ($action === 'store') {
             $_POST['hasil_tindakan'],
             $buatResep ? 1 : 0,
             $idResep,
-            $idDetailResep,
-            $jumlahObat,
-            $dosisObat,
         ]);
 
         if ($buatResep && ($_POST['id_obat'] ?? '') !== '') {
-            execute('INSERT INTO Obat_Resep (Obat_id_obat, Resep_id_resep) VALUES (?, ?)', [$_POST['id_obat'], $idResep]);
+            execute('INSERT INTO Detail_Resep (Resep_id_resep, Obat_id_obat, jumlah_obat, dosis_obat) VALUES (?, ?, ?, ?)', [$idResep, $_POST['id_obat'], $jumlahObat, $dosisObat]);
         }
 
         flash('Rekam medis berhasil dibuat.');
@@ -79,7 +75,6 @@ if ($action === 'create') {
         'dg' => nextId('Diagnosa', 'id_diagnosa', 'DG', 3),
         'tm' => nextId('Tindakan_Medis', 'id_tindakan_medis', 'T', 4),
         'rs' => nextId('Resep', 'id_resep', 'RS', 3),
-        'dr' => nextId('Detail_Resep', 'id_detail_resep', 'DR', 3),
     ];
     ?>
     <section class="header">
@@ -145,9 +140,8 @@ if ($action === 'create') {
         <div class="card">
             <h2>Resep Opsional</h2>
             <label class="small"><input type="checkbox" name="buat_resep" value="1"> Buat resep untuk rekam medis ini</label>
-            <div class="form-row-3">
+            <div class="form-row">
                 <label>ID Resep <input name="id_resep" value="<?= e($ids['rs']) ?>" readonly></label>
-                <label>ID Detail Resep <input name="id_detail_resep" value="<?= e($ids['dr']) ?>" readonly></label>
                 <label>Obat
                     <select name="id_obat">
                         <option value="">Pilih obat</option>

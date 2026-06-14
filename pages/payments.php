@@ -4,10 +4,17 @@ $action = $_GET['action'] ?? 'index';
 if ($action === 'store') {
     postOnly();
     try {
+        execute('CALL proses_pembayaran(?, ?, ?, ?)', [
+            $_POST['id_pembayaran'],
+            $_POST['id_registrasi'],
+            $_POST['id_jenis_pembayaran'],
+            $_POST['nomor_asuransi'] !== '' ? $_POST['nomor_asuransi'] : null,
+        ]);
+
         execute(
-            'INSERT INTO Detail_Pembayaran (id_detail_pembayaran, keterangan_biaya, sub_total, Tindakan_Medis_id_tindakan_medis, Rawat_Inap_id_rawat_inap, Resep_id_resep) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO Detail_Pembayaran (Pembayaran_id_pembayaran, keterangan_biaya, sub_total, Tindakan_Medis_id_tindakan_medis, Rawat_Inap_id_rawat_inap, Resep_id_resep) VALUES (?, ?, ?, ?, ?, ?)',
             [
-                $_POST['id_detail_pembayaran'],
+                $_POST['id_pembayaran'],
                 $_POST['keterangan_biaya'],
                 $_POST['sub_total'],
                 $_POST['id_tindakan_medis'] !== '' ? $_POST['id_tindakan_medis'] : null,
@@ -15,14 +22,6 @@ if ($action === 'store') {
                 $_POST['id_resep'] !== '' ? $_POST['id_resep'] : null,
             ]
         );
-
-        execute('CALL proses_pembayaran(?, ?, ?, ?, ?)', [
-            $_POST['id_pembayaran'],
-            $_POST['id_registrasi'],
-            $_POST['id_jenis_pembayaran'],
-            $_POST['nomor_asuransi'] !== '' ? $_POST['nomor_asuransi'] : null,
-            $_POST['id_detail_pembayaran'],
-        ]);
 
         flash('Pembayaran berhasil dibuat. Total biaya disinkronkan oleh trigger.');
         redirect('payments');
@@ -54,8 +53,7 @@ if ($action === 'create') {
 
     <div class="card">
         <form class="form" method="post" action="<?= e(url('payments', ['action' => 'store'])) ?>">
-            <div class="form-row-3">
-                <label>ID Detail Pembayaran <input name="id_detail_pembayaran" value="<?= e(nextId('Detail_Pembayaran', 'id_detail_pembayaran', 'DP', 3)) ?>" readonly></label>
+            <div class="form-row">
                 <label>ID Pembayaran <input name="id_pembayaran" value="<?= e(nextId('Pembayaran', 'id_pembayaran', 'PY', 3)) ?>" readonly></label>
                 <label>Sub Total <input type="number" name="sub_total" min="0" step="0.01" required></label>
             </div>
@@ -103,7 +101,7 @@ $rows = fetchAll(
      JOIN Pasien p ON p.id_pasien = r.Pasien_id_pasien
      JOIN Jenis_Pembayaran jp ON jp.id_jenis_pembayaran = py.Jenis_Pembayaran_id_jenis_pembayaran
      LEFT JOIN Asuransi a ON a.nomor_asuransi = py.Asuransi_nomor_asuransi
-     JOIN Detail_Pembayaran dp ON dp.id_detail_pembayaran = py.Detail_Pembayaran_id_detail_pembayaran
+     LEFT JOIN Detail_Pembayaran dp ON dp.Pembayaran_id_pembayaran = py.id_pembayaran
      ORDER BY py.tanggal_pembayaran DESC'
 );
 ?>

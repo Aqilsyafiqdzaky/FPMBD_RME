@@ -5,8 +5,9 @@ DROP TRIGGER IF EXISTS trg_kurang_stok_obat;
 DROP TRIGGER IF EXISTS trg_kamar_terisi;
 DROP TRIGGER IF EXISTS trg_kamar_kosong;
 DROP TRIGGER IF EXISTS trg_validasi_stok_obat;
-DROP TRIGGER IF EXISTS trg_set_total_pembayaran;
-DROP TRIGGER IF EXISTS trg_update_pembayaran_upd;
+DROP TRIGGER IF EXISTS trg_set_total_pembayaran_ins;
+DROP TRIGGER IF EXISTS trg_set_total_pembayaran_upd;
+DROP TRIGGER IF EXISTS trg_set_total_pembayaran_del;
 DROP TRIGGER IF EXISTS trg_audit_rekam_medis;
 
 DROP PROCEDURE IF EXISTS registrasi_pasien_baru;
@@ -107,10 +108,9 @@ READS SQL DATA
 BEGIN
     DECLARE v_total INT DEFAULT 0;
     
-    SELECT COALESCE(dr.jumlah_obat, 0) INTO v_total
-    FROM Resep r
-    JOIN Detail_Resep dr ON r.Detail_Resep_id_detail_resep = dr.id_detail_resep
-    WHERE r.id_resep = p_id_resep;
+    SELECT COALESCE(SUM(jumlah_obat), 0) INTO v_total
+    FROM Detail_Resep
+    WHERE Resep_id_resep = p_id_resep;
     
     RETURN v_total;
 END$$
@@ -337,10 +337,7 @@ CREATE PROCEDURE buat_rekam_medis(
     IN p_biaya_tindakan DECIMAL(10,2),
     IN p_hasil_tindakan VARCHAR(100),
     IN p_buat_resep BOOLEAN,
-    IN p_id_resep CHAR(5),
-    IN p_id_detail_resep CHAR(5),
-    IN p_jumlah_obat INT,
-    IN p_dosis_obat VARCHAR(50)
+    IN p_id_resep CHAR(5)
 )
 BEGIN
     DECLARE v_id_rekam_medis CHAR(5);
@@ -379,16 +376,10 @@ BEGIN
     );
 
     IF p_buat_resep THEN
-        INSERT INTO Detail_Resep (
-            id_detail_resep, jumlah_obat, dosis_obat
-        ) VALUES (
-            p_id_detail_resep, p_jumlah_obat, p_dosis_obat
-        );
-
         INSERT INTO Resep (
-            id_resep, tanggal_resep, Rekam_Medis_id_rekam_medis, Detail_Resep_id_detail_resep
+            id_resep, tanggal_resep, Rekam_Medis_id_rekam_medis
         ) VALUES (
-            p_id_resep, NOW(), v_id_rekam_medis, p_id_detail_resep
+            p_id_resep, NOW(), v_id_rekam_medis
         );
     END IF;
 
@@ -400,11 +391,9 @@ CREATE PROCEDURE proses_pembayaran(
     IN p_id_pembayaran CHAR(5),
     IN p_id_registrasi CHAR(5),
     IN p_id_jenis_pembayaran CHAR(5),
-    IN p_no_asuransi CHAR(13),
-    IN p_id_detail_pembayaran CHAR(5)
+    IN p_no_asuransi CHAR(13)
 )
 BEGIN
-    DECLARE v_total DECIMAL(10,2) DEFAULT 0.00;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -413,20 +402,14 @@ BEGIN
 
     START TRANSACTION;
 
-    -- Mengambil detail biaya
-    SELECT COALESCE(sub_total, 0.00) INTO v_total
-    FROM Detail_Pembayaran
-    WHERE id_detail_pembayaran = p_id_detail_pembayaran;
-
-    -- Menyimpan data pembayaran & mengaitkan metode pembayaran (Jenis_Pembayaran)
     INSERT INTO Pembayaran (
         id_pembayaran, total_biaya, tanggal_pembayaran, 
         Registrasi_id_registrasi, Jenis_Pembayaran_id_jenis_pembayaran, 
-        Asuransi_nomor_asuransi, Detail_Pembayaran_id_detail_pembayaran
+        Asuransi_nomor_asuransi
     ) VALUES (
-        p_id_pembayaran, v_total, NOW(), 
+        p_id_pembayaran, 0.00, NOW(), 
         p_id_registrasi, p_id_jenis_pembayaran, 
-        p_no_asuransi, p_id_detail_pembayaran
+        p_no_asuransi
     );
 
     COMMIT;
@@ -534,18 +517,11 @@ END$$
 
 -- Trigger Mengurangi Stok Obat Setelah Resep Dibuat
 CREATE TRIGGER trg_kurang_stok_obat
-AFTER INSERT ON Obat_Resep
+AFTER INSERT ON Detail_Resep
 FOR EACH ROW
 BEGIN
-    DECLARE v_jumlah INT;
-
-    SELECT dr.jumlah_obat INTO v_jumlah
-    FROM Resep r
-    JOIN Detail_Resep dr ON r.Detail_Resep_id_detail_resep = dr.id_detail_resep
-    WHERE r.id_resep = NEW.Resep_id_resep;
-
     UPDATE Obat
-    SET stok_obat = stok_obat - COALESCE(v_jumlah, 0)
+    SET stok_obat = stok_obat - NEW.jumlah_obat
     WHERE id_obat = NEW.Obat_id_obat;
 END$$
 
@@ -578,49 +554,49 @@ END$$
 
 -- Trigger Validasi Stok Obat
 CREATE TRIGGER trg_validasi_stok_obat
-BEFORE INSERT ON Obat_Resep
+BEFORE INSERT ON Detail_Resep
 FOR EACH ROW
 BEGIN
     DECLARE v_stok INT DEFAULT 0;
-    DECLARE v_jumlah INT DEFAULT 0;
 
     SELECT stok_obat INTO v_stok
     FROM Obat
     WHERE id_obat = NEW.Obat_id_obat;
 
-    SELECT dr.jumlah_obat INTO v_jumlah
-    FROM Resep r
-    JOIN Detail_Resep dr ON r.Detail_Resep_id_detail_resep = dr.id_detail_resep
-    WHERE r.id_resep = NEW.Resep_id_resep;
-
-    IF v_stok < v_jumlah THEN
+    IF v_stok < NEW.jumlah_obat THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Stok obat tidak mencukupi untuk memenuhi resep ini!';
     END IF;
 END$$
 
--- Trigger Perhitungan Otomatis Total Pembayaran (BEFORE INSERT)
-CREATE TRIGGER trg_set_total_pembayaran
-BEFORE INSERT ON Pembayaran
+-- Trigger Perhitungan Otomatis Total Pembayaran (AFTER INSERT)
+CREATE TRIGGER trg_set_total_pembayaran_ins
+AFTER INSERT ON Detail_Pembayaran
 FOR EACH ROW
 BEGIN
-    DECLARE v_sub DECIMAL(12,2) DEFAULT 0.00;
-    
-    SELECT sub_total INTO v_sub
-    FROM Detail_Pembayaran
-    WHERE id_detail_pembayaran = NEW.Detail_Pembayaran_id_detail_pembayaran;
-    
-    SET NEW.total_biaya = COALESCE(v_sub, 0.00);
+    UPDATE Pembayaran
+    SET total_biaya = (SELECT COALESCE(SUM(sub_total), 0) FROM Detail_Pembayaran WHERE Pembayaran_id_pembayaran = NEW.Pembayaran_id_pembayaran)
+    WHERE id_pembayaran = NEW.Pembayaran_id_pembayaran;
 END$$
 
 -- Trigger Perhitungan Otomatis Total Pembayaran (AFTER UPDATE)
-CREATE TRIGGER trg_update_pembayaran_upd
+CREATE TRIGGER trg_set_total_pembayaran_upd
 AFTER UPDATE ON Detail_Pembayaran
 FOR EACH ROW
 BEGIN
     UPDATE Pembayaran
-    SET total_biaya = NEW.sub_total
-    WHERE Detail_Pembayaran_id_detail_pembayaran = NEW.id_detail_pembayaran;
+    SET total_biaya = (SELECT COALESCE(SUM(sub_total), 0) FROM Detail_Pembayaran WHERE Pembayaran_id_pembayaran = NEW.Pembayaran_id_pembayaran)
+    WHERE id_pembayaran = NEW.Pembayaran_id_pembayaran;
+END$$
+
+-- Trigger Perhitungan Otomatis Total Pembayaran (AFTER DELETE)
+CREATE TRIGGER trg_set_total_pembayaran_del
+AFTER DELETE ON Detail_Pembayaran
+FOR EACH ROW
+BEGIN
+    UPDATE Pembayaran
+    SET total_biaya = (SELECT COALESCE(SUM(sub_total), 0) FROM Detail_Pembayaran WHERE Pembayaran_id_pembayaran = OLD.Pembayaran_id_pembayaran)
+    WHERE id_pembayaran = OLD.Pembayaran_id_pembayaran;
 END$$
 
 -- Trigger Audit Rekam Medis
