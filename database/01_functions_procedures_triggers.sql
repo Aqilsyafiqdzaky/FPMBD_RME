@@ -280,7 +280,6 @@ BEGIN
         jenis_kelamin_pasien = p_gender
     WHERE id_pasien = p_id_pasien;
 
-    -- Data yang dilepas dari form tetap dipertahankan sebagai riwayat tidak aktif.
     UPDATE Riwayat_Alergi
     SET status_alergi = 'Tidak Aktif'
     WHERE Pasien_id_pasien = p_id_pasien;
