@@ -18,7 +18,7 @@ INSERT INTO Poliklinik (id_poliklinik, nama_poliklinik, lokasi_poliklinik) VALUE
 ('P0006', 'Poli Saraf', 'Gedung A Lantai 3');
 
 INSERT INTO Dokter (id_dokter, nama_dokter, nomor_telepon_dokter, spesialisasi_dokter) VALUES
-('D0001', 'Dr. Budi Utomo', '08123456789', 'Spesialis Penyakit Dalam').
+('D0001', 'Dr. Budi Utomo', '08123456789', 'Spesialis Penyakit Dalam'),
 ('D0002', 'Dr. Andi Saputra, Sp.A', '08122334455', 'Spesialis Anak'),
 ('D0003', 'Dr. Maria Lestari, Sp.OG', '08133445566', 'Spesialis Kandungan (Obgyn)'),
 ('D0004', 'Drg. Hendra Wijaya', '08144556677', 'Dokter Gigi'),

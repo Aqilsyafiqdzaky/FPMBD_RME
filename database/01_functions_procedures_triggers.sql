@@ -22,7 +22,7 @@ DROP FUNCTION IF EXISTS cek_ketersediaan_kamar;
 DROP FUNCTION IF EXISTS hitung_total_obat;
 DROP FUNCTION IF EXISTS riwayat_alergi_pasien;
 
--- 1. TABEL LOG AUDIT
+-- TABEL LOG AUDIT
 
 CREATE TABLE IF NOT EXISTS Log_Audit_Rekam_Medis (
     id_log INT AUTO_INCREMENT PRIMARY KEY,
@@ -38,11 +38,11 @@ CREATE TABLE IF NOT EXISTS Log_Audit_Rekam_Medis (
     perawat_baru CHAR(5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- 2. FUNCTIONS
+-- FUNCTIONS
 
 DELIMITER $$
 
--- 2.1 Function Menghitung Umur Pasien
+-- Function Menghitung Umur Pasien
 CREATE FUNCTION hitung_umur_pasien(p_id_pasien CHAR(5))
 RETURNS INT
 DETERMINISTIC
@@ -56,7 +56,7 @@ BEGIN
     RETURN TIMESTAMPDIFF(YEAR, v_tgl_lahir, CURDATE());
 END$$
 
--- 2.2 Function Menghitung Total Biaya Pembayaran
+-- Function Menghitung Total Biaya Pembayaran
 CREATE FUNCTION hitung_total_biaya(p_id_registrasi CHAR(5))
 RETURNS DECIMAL(12,2)
 DETERMINISTIC
@@ -85,7 +85,7 @@ BEGIN
     RETURN v_total;
 END$$
 
--- 2.3 Function Mengecek Ketersediaan Kamar
+-- Function Mengecek Ketersediaan Kamar
 CREATE FUNCTION cek_ketersediaan_kamar(p_id_kamar CHAR(5))
 RETURNS VARCHAR(10)
 DETERMINISTIC
@@ -99,7 +99,7 @@ BEGIN
     RETURN COALESCE(v_status, 'Tidak Ada');
 END$$
 
--- 2.4 Function Menghitung Total Obat dalam Resep
+-- Function Menghitung Total Obat dalam Resep
 CREATE FUNCTION hitung_total_obat(p_id_resep CHAR(5))
 RETURNS INT
 DETERMINISTIC
@@ -115,7 +115,7 @@ BEGIN
     RETURN v_total;
 END$$
 
--- 2.5 Function Menampilkan Riwayat Alergi Pasien
+-- Function Menampilkan Riwayat Alergi Pasien
 CREATE FUNCTION riwayat_alergi_pasien(p_id_pasien CHAR(5))
 RETURNS VARCHAR(1000)
 DETERMINISTIC
@@ -135,9 +135,9 @@ BEGIN
     RETURN COALESCE(v_riwayat, 'Tidak ada riwayat alergi');
 END$$
 
--- 3. STORED PROCEDURES
+-- STORED PROCEDURES
 
--- 3.1 Stored Procedure Registrasi Pasien Baru
+-- Stored Procedure Registrasi Pasien Baru
 CREATE PROCEDURE registrasi_pasien_baru(
     IN p_id_pasien CHAR(5),
     IN p_nama_pasien VARCHAR(50),
@@ -232,7 +232,7 @@ BEGIN
     COMMIT;
 END$$
 
--- 3.2 Stored Procedure Memperbarui Pasien dan Riwayat Alergi
+-- Stored Procedure Memperbarui Pasien dan Riwayat Alergi
 CREATE PROCEDURE perbarui_pasien_dan_alergi(
     IN p_id_pasien CHAR(5),
     IN p_nama_pasien VARCHAR(50),
@@ -321,7 +321,7 @@ BEGIN
     COMMIT;
 END$$
 
--- 3.3 Stored Procedure Pembuatan Rekam Medis
+-- Stored Procedure Pembuatan Rekam Medis
 CREATE PROCEDURE buat_rekam_medis(
     IN p_id_rekam_medis CHAR(5),
     IN p_keluhan VARCHAR(150),
@@ -395,7 +395,7 @@ BEGIN
     COMMIT;
 END$$
 
--- 3.3 Stored Procedure Proses Pembayaran
+-- Stored Procedure Proses Pembayaran
 CREATE PROCEDURE proses_pembayaran(
     IN p_id_pembayaran CHAR(5),
     IN p_id_registrasi CHAR(5),
@@ -413,12 +413,12 @@ BEGIN
 
     START TRANSACTION;
 
-    -- 1. Mengambil detail biaya
+    -- Mengambil detail biaya
     SELECT COALESCE(sub_total, 0.00) INTO v_total
     FROM Detail_Pembayaran
     WHERE id_detail_pembayaran = p_id_detail_pembayaran;
 
-    -- 2. Menyimpan data pembayaran & mengaitkan metode pembayaran (Jenis_Pembayaran)
+    -- Menyimpan data pembayaran & mengaitkan metode pembayaran (Jenis_Pembayaran)
     INSERT INTO Pembayaran (
         id_pembayaran, total_biaya, tanggal_pembayaran, 
         Registrasi_id_registrasi, Jenis_Pembayaran_id_jenis_pembayaran, 
@@ -432,7 +432,7 @@ BEGIN
     COMMIT;
 END$$
 
--- 3.4 Stored Procedure Penjadwalan Jaga Dokter dan Perawat
+-- Stored Procedure Penjadwalan Jaga Dokter dan Perawat
 CREATE PROCEDURE tambah_jadwal_jaga(
     IN p_id_jadwal CHAR(5),
     IN p_tanggal DATE,
@@ -470,7 +470,7 @@ BEGIN
     END IF;
 END$$
 
--- 3.5 Stored Procedure Rawat Inap Pasien
+-- Stored Procedure Rawat Inap Pasien
 CREATE PROCEDURE proses_rawat_inap(
     IN p_id_rawat_inap CHAR(5),
     IN p_tanggal_masuk DATETIME,
@@ -487,18 +487,18 @@ BEGIN
 
     START TRANSACTION;
 
-    -- 1. Mengecek status kamar
+    -- Mengecek status kamar
     SELECT status_kamar INTO v_status FROM Kamar WHERE id_kamar = p_id_kamar;
 
     IF v_status = 'Terisi' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Error: Kamar sudah terisi!';
     ELSE
-        -- 2. Membuat data rawat inap
+        -- Membuat data rawat inap
         INSERT INTO Rawat_Inap (id_rawat_inap, tanggal_masuk, tanggal_keluar, Kamar_id_kamar, Registrasi_id_registrasi)
         VALUES (p_id_rawat_inap, p_tanggal_masuk, NULL, p_id_kamar, p_id_registrasi);
 
-        -- 3. Menandai jenis layanan registrasi. Status kamar diubah oleh trigger.
+        -- Menandai jenis layanan registrasi. Status kamar diubah oleh trigger.
         UPDATE Registrasi
         SET jenis_layanan = 'Rawat Inap'
         WHERE id_registrasi = p_id_registrasi;
@@ -507,9 +507,9 @@ BEGIN
     COMMIT;
 END$$
 
--- 4. TRIGGERS
+-- TRIGGERS
 
--- 4.1 Trigger Generate Otomatis ID Rekam Medis
+-- Trigger Generate Otomatis ID Rekam Medis
 CREATE TRIGGER trg_generate_id_rekam_medis
 BEFORE INSERT ON Rekam_Medis
 FOR EACH ROW
@@ -532,7 +532,7 @@ BEGIN
     END IF;
 END$$
 
--- 4.2 Trigger Mengurangi Stok Obat Setelah Resep Dibuat
+-- Trigger Mengurangi Stok Obat Setelah Resep Dibuat
 CREATE TRIGGER trg_kurang_stok_obat
 AFTER INSERT ON Obat_Resep
 FOR EACH ROW
@@ -549,7 +549,7 @@ BEGIN
     WHERE id_obat = NEW.Obat_id_obat;
 END$$
 
--- 4.3 Trigger Mengubah Status Kamar Menjadi Terisi
+-- Trigger Mengubah Status Kamar Menjadi Terisi
 CREATE TRIGGER trg_kamar_terisi
 AFTER INSERT ON Rawat_Inap
 FOR EACH ROW
@@ -564,7 +564,7 @@ BEGIN
     WHERE id_registrasi = NEW.Registrasi_id_registrasi;
 END$$
 
--- 4.4 Trigger Mengubah Status Kamar Menjadi Kosong
+-- Trigger Mengubah Status Kamar Menjadi Kosong
 CREATE TRIGGER trg_kamar_kosong
 AFTER UPDATE ON Rawat_Inap
 FOR EACH ROW
@@ -576,7 +576,7 @@ BEGIN
     END IF;
 END$$
 
--- 4.5 Trigger Validasi Stok Obat
+-- Trigger Validasi Stok Obat
 CREATE TRIGGER trg_validasi_stok_obat
 BEFORE INSERT ON Obat_Resep
 FOR EACH ROW
@@ -599,7 +599,7 @@ BEGIN
     END IF;
 END$$
 
--- 4.6 Trigger Perhitungan Otomatis Total Pembayaran (BEFORE INSERT)
+-- Trigger Perhitungan Otomatis Total Pembayaran (BEFORE INSERT)
 CREATE TRIGGER trg_set_total_pembayaran
 BEFORE INSERT ON Pembayaran
 FOR EACH ROW
@@ -613,7 +613,7 @@ BEGIN
     SET NEW.total_biaya = COALESCE(v_sub, 0.00);
 END$$
 
--- 4.6 Trigger Perhitungan Otomatis Total Pembayaran (AFTER UPDATE)
+-- Trigger Perhitungan Otomatis Total Pembayaran (AFTER UPDATE)
 CREATE TRIGGER trg_update_pembayaran_upd
 AFTER UPDATE ON Detail_Pembayaran
 FOR EACH ROW
@@ -623,7 +623,7 @@ BEGIN
     WHERE Detail_Pembayaran_id_detail_pembayaran = NEW.id_detail_pembayaran;
 END$$
 
--- 4.7 Trigger Audit Rekam Medis
+-- Trigger Audit Rekam Medis
 CREATE TRIGGER trg_audit_rekam_medis
 AFTER UPDATE ON Rekam_Medis
 FOR EACH ROW
