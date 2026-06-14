@@ -12,7 +12,9 @@ DROP TRIGGER IF EXISTS trg_audit_rekam_medis;
 
 DROP PROCEDURE IF EXISTS registrasi_pasien_baru;
 DROP PROCEDURE IF EXISTS perbarui_pasien_dan_alergi;
-DROP PROCEDURE IF EXISTS buat_rekam_medis;
+DROP PROCEDURE IF EXISTS sp_anamnesis_perawat;
+DROP PROCEDURE IF EXISTS sp_pemeriksaan_dokter;
+DROP PROCEDURE IF EXISTS sp_order_farmasi;
 DROP PROCEDURE IF EXISTS proses_pembayaran;
 DROP PROCEDURE IF EXISTS tambah_jadwal_jaga;
 DROP PROCEDURE IF EXISTS proses_rawat_inap;
@@ -321,27 +323,15 @@ BEGIN
     COMMIT;
 END$$
 
--- Stored Procedure Pembuatan Rekam Medis
-CREATE PROCEDURE buat_rekam_medis(
+-- Stored Procedure Anamnesis Perawat
+CREATE PROCEDURE sp_anamnesis_perawat(
     IN p_id_rekam_medis CHAR(5),
     IN p_keluhan VARCHAR(150),
     IN p_id_registrasi CHAR(5),
-    IN p_id_dokter CHAR(5),
     IN p_id_perawat CHAR(5),
-    IN p_id_rawat_inap CHAR(5),
-    IN p_id_diagnosa CHAR(5),
-    IN p_nama_diagnosa VARCHAR(100),
-    IN p_ket_diagnosa VARCHAR(150),
-    IN p_id_tindakan CHAR(5),
-    IN p_nama_tindakan VARCHAR(100),
-    IN p_biaya_tindakan DECIMAL(10,2),
-    IN p_hasil_tindakan VARCHAR(100),
-    IN p_buat_resep BOOLEAN,
-    IN p_id_resep CHAR(5)
+    IN p_id_rawat_inap CHAR(5)
 )
 BEGIN
-    DECLARE v_id_rekam_medis CHAR(5);
-
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -355,33 +345,83 @@ BEGIN
         Registrasi_id_registrasi, Dokter_id_dokter, Perawat_id_perawat, Rawat_Inap_id_rawat_inap
     ) VALUES (
         p_id_rekam_medis, NOW(), p_keluhan, 
-        p_id_registrasi, p_id_dokter, p_id_perawat, p_id_rawat_inap
+        p_id_registrasi, NULL, p_id_perawat, p_id_rawat_inap
     );
 
-    SELECT id_rekam_medis INTO v_id_rekam_medis
-    FROM Rekam_Medis
-    WHERE Registrasi_id_registrasi = p_id_registrasi
-    LIMIT 1;
+    COMMIT;
+END$$
+
+-- Stored Procedure Pemeriksaan Dokter
+CREATE PROCEDURE sp_pemeriksaan_dokter(
+    IN p_id_rekam_medis CHAR(5),
+    IN p_id_dokter CHAR(5),
+    IN p_id_diagnosa CHAR(5),
+    IN p_nama_diagnosa VARCHAR(100),
+    IN p_ket_diagnosa VARCHAR(150),
+    IN p_id_tindakan CHAR(5),
+    IN p_nama_tindakan VARCHAR(100),
+    IN p_biaya_tindakan DECIMAL(10,2),
+    IN p_hasil_tindakan VARCHAR(100)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    UPDATE Rekam_Medis
+    SET Dokter_id_dokter = p_id_dokter
+    WHERE id_rekam_medis = p_id_rekam_medis;
 
     INSERT INTO Diagnosa (
         id_diagnosa, nama_diagnosa, keterangan_diagnosa, Rekam_Medis_id_rekam_medis
     ) VALUES (
-        p_id_diagnosa, p_nama_diagnosa, p_ket_diagnosa, v_id_rekam_medis
+        p_id_diagnosa, p_nama_diagnosa, p_ket_diagnosa, p_id_rekam_medis
     );
 
     INSERT INTO Tindakan_Medis (
         id_tindakan_medis, nama_tindakan, biaya_tindakan, hasil_tindakan, Rekam_Medis_id_rekam_medis
     ) VALUES (
-        p_id_tindakan, p_nama_tindakan, p_biaya_tindakan, p_hasil_tindakan, v_id_rekam_medis
+        p_id_tindakan, p_nama_tindakan, p_biaya_tindakan, p_hasil_tindakan, p_id_rekam_medis
     );
 
-    IF p_buat_resep THEN
-        INSERT INTO Resep (
-            id_resep, tanggal_resep, Rekam_Medis_id_rekam_medis
-        ) VALUES (
-            p_id_resep, NOW(), v_id_rekam_medis
-        );
+    COMMIT;
+END$$
+
+-- Stored Procedure Order Farmasi
+CREATE PROCEDURE sp_order_farmasi(
+    IN p_id_rekam_medis CHAR(5),
+    IN p_id_resep CHAR(5),
+    IN p_id_obat CHAR(5),
+    IN p_jumlah INT,
+    IN p_dosis VARCHAR(50)
+)
+BEGIN
+    DECLARE v_id_resep CHAR(5);
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+
+    SELECT id_resep INTO v_id_resep 
+    FROM Resep 
+    WHERE Rekam_Medis_id_rekam_medis = p_id_rekam_medis 
+    LIMIT 1;
+
+    IF v_id_resep IS NULL THEN
+        INSERT INTO Resep (id_resep, tanggal_resep, Rekam_Medis_id_rekam_medis) 
+        VALUES (p_id_resep, NOW(), p_id_rekam_medis);
+        SET v_id_resep = p_id_resep;
     END IF;
+
+    INSERT INTO Detail_Resep (Resep_id_resep, Obat_id_obat, jumlah_obat, dosis_obat) 
+    VALUES (v_id_resep, p_id_obat, p_jumlah, p_dosis);
 
     COMMIT;
 END$$

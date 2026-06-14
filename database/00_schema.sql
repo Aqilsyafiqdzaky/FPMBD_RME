@@ -179,7 +179,7 @@ CREATE TABLE Rekam_Medis (
     tanggal_pemeriksaan DATETIME NOT NULL,
     keluhan_pasien VARCHAR(150) NOT NULL,
     Registrasi_id_registrasi CHAR(5) NOT NULL,
-    Dokter_id_dokter CHAR(5) NOT NULL,
+    Dokter_id_dokter CHAR(5) NULL,
     Perawat_id_perawat CHAR(5) NOT NULL,
     Rawat_Inap_id_rawat_inap CHAR(5) NULL,
     CONSTRAINT fk_rm_registrasi FOREIGN KEY (Registrasi_id_registrasi)
