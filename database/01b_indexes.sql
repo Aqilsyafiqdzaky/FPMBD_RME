@@ -1,5 +1,3 @@
--- Jalankan setelah 00_schema.sql pada instalasi database baru.
-
 CREATE INDEX idx_pasien_nama ON Pasien(nama_pasien);
 CREATE INDEX idx_riwayat_alergi_pasien ON Riwayat_Alergi(Pasien_id_pasien);
 CREATE INDEX idx_riwayat_alergi_master ON Riwayat_Alergi(Alergi_id_alergi);

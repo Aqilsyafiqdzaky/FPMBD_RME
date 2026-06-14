@@ -1,6 +1,5 @@
 SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
--- 1. Tambah data master pendukung (Alergi, Poliklinik, Dokter, Perawat, Kamar, Obat, Asuransi, Jenis Pembayaran, Shift)
 INSERT INTO Alergi (id_alergi, nama_alergi, kategori_alergi, keterangan_alergi) VALUES
 ('A0001', 'Parasetamol', 'Obat', 'Alergen pada obat yang mengandung parasetamol'),
 ('A0002', 'Kacang Tanah', 'Makanan', 'Alergen makanan berbahan kacang tanah'),
@@ -68,7 +67,7 @@ INSERT INTO Shift (id_shift, Jenis_Shift, Jam_Masuk, Jam_Selesai) VALUES
 (3, 'Malam', '21:00:00', '07:00:00');
 
 
--- 2. Uji Coba Stored Procedure Registrasi Pasien Baru
+-- Uji Coba Stored Procedure Registrasi Pasien Baru
 CALL registrasi_pasien_baru(
     'PS001', 'Andi Pratama', '081122334455', 'Jl. Merdeka No. 45', '1995-08-17', 'L',
     '[{"id_alergi":"A0001","reaksi":"Gatal-gatal pada kulit","keparahan":"Sedang","tanggal_diketahui":"2024-02-10","status":"Aktif","catatan":"Dikonfirmasi setelah konsumsi obat"}]',
@@ -82,24 +81,24 @@ CALL registrasi_pasien_baru(
     'R0002', 'P0001', 'Rawat Jalan'
 );
 
--- Cek apakah pasien & registrasi masuk
+-- Checker
 SELECT * FROM Pasien;
 SELECT * FROM Riwayat_Alergi;
 SELECT * FROM Registrasi;
 
 
--- 3. Uji Coba Function Menghitung Umur Pasien & Menampilkan Riwayat Alergi
+-- Uji Coba Function Menghitung Umur Pasien & Menampilkan Riwayat Alergi
 SELECT hitung_umur_pasien('PS001') AS Umur_Pasien, riwayat_alergi_pasien('PS001') AS Alergi_Pasien;
 
 
--- 4. Uji Coba Stored Procedure Penjadwalan Jaga Dokter & Perawat (dan validasi bentrok)
+-- Uji Coba Stored Procedure Penjadwalan Jaga Dokter & Perawat (dan validasi bentrok)
 CALL tambah_jadwal_jaga('J0001', '2026-06-08', 'N0001', 'D0001', 1);
 
 -- Percobaan jadwal bentrok (Akan menghasilkan error SIGNAL SQLSTATE)
 -- CALL tambah_jadwal_jaga('J0002', '2026-06-08', 'N0001', 'D0001', 1);
 
 
--- 5. Uji Coba Stored Procedure Rawat Inap Pasien (dan validasi ketersediaan kamar)
+-- Uji Coba Stored Procedure Rawat Inap Pasien (dan validasi ketersediaan kamar)
 CALL proses_rawat_inap('RI001', '2026-06-07 10:00:00', 'K0001', 'R0001');
 
 -- Cek status kamar sekarang (Seharusnya terisi oleh trigger/SP)
@@ -109,7 +108,7 @@ SELECT cek_ketersediaan_kamar('K0001') AS Status_Kamar;
 -- CALL proses_rawat_inap('RI002', '2026-06-07 11:00:00', 'K0001', 'R0001');
 
 
--- 6. Uji Coba Stored Procedure Pembuatan Rekam Medis (Dan Trigger Generate ID Rekam Medis)
+-- Uji Coba Stored Procedure Pembuatan Rekam Medis (Dan Trigger Generate ID Rekam Medis)
 -- ID Rekam Medis diset 'RM000' agar di-generate otomatis oleh trigger menjadi 'RM001'
 CALL buat_rekam_medis(
     'RM000', 'Demam tinggi dan pusing kepala', 'R0001', 'D0001', 'N0001', 'RI001',
@@ -142,11 +141,11 @@ INSERT INTO Detail_Resep (Resep_id_resep, Obat_id_obat, jumlah_obat, dosis_obat)
 SELECT stok_obat FROM Obat WHERE id_obat = 'O0001'; -- Seharusnya berkurang 5 menjadi 95
 
 
--- 8. Uji Coba Function hitung_total_obat
+-- Uji Coba Function hitung_total_obat
 SELECT hitung_total_obat('RS001') AS Total_Obat_Resep;
 
 
--- 9. Uji Coba Stored Procedure Pembayaran & Trigger Sinkronisasi Total
+-- Uji Coba Stored Procedure Pembayaran & Trigger Sinkronisasi Total
 -- Proses Pembayaran terlebih dahulu
 CALL proses_pembayaran('PY001', 'R0001', 'JP001', 'ASR0000000001');
 CALL proses_pembayaran('PY002', 'R0002', 'JP001', NULL);
@@ -166,7 +165,7 @@ UPDATE Detail_Pembayaran SET sub_total = 275000.00 WHERE id_detail_pembayaran = 
 SELECT * FROM Pembayaran; -- Seharusnya total_biaya berubah menjadi 275000.00
 
 
--- 10. Uji Coba Trigger Audit Rekam Medis
+-- Uji Coba Trigger Audit Rekam Medis
 -- Update keluhan rekam medis
 UPDATE Rekam_Medis SET keluhan_pasien = 'Demam tinggi disertai mual' WHERE id_rekam_medis = 'RM001';
 
@@ -174,7 +173,7 @@ UPDATE Rekam_Medis SET keluhan_pasien = 'Demam tinggi disertai mual' WHERE id_re
 SELECT * FROM Log_Audit_Rekam_Medis;
 
 
--- 11. Selesai Rawat Inap & Uji Coba Trigger Mengubah Status Kamar Menjadi Kosong
+-- Selesai Rawat Inap & Uji Coba Trigger Mengubah Status Kamar Menjadi Kosong
 UPDATE Rawat_Inap SET tanggal_keluar = '2026-06-12 12:00:00' WHERE id_rawat_inap = 'RI001';
 
 -- Cek status kamar sekarang (Seharusnya kembali 'Kosong' karena trigger)
