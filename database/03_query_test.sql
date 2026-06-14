@@ -110,6 +110,7 @@ UPDATE Rawat_Inap SET tanggal_keluar = '2026-06-12 12:00:00' WHERE id_rawat_inap
 -- Cek status kamar sekarang (Seharusnya kembali 'Kosong' karena trigger)
 SELECT cek_ketersediaan_kamar('K0001') AS Status_Kamar;
 
+-- Query Kasus-1
 SELECT 
     pol.nama_poliklinik, jp.nama_jenis_pembayaran, COUNT(pem.id_pembayaran) AS jumlah_transaksi, SUM(pem.total_biaya) AS total_pendapatan
 FROM Pembayaran pem
@@ -119,5 +120,73 @@ JOIN Jenis_Pembayaran jp ON pem.Jenis_Pembayaran_id_jenis_pembayaran = jp.id_jen
 WHERE MONTH(pem.tanggal_pembayaran) = MONTH(CURDATE()) AND YEAR(pem.tanggal_pembayaran) = YEAR(CURDATE())
 GROUP BY pol.nama_poliklinik, jp.nama_jenis_pembayaran
 ORDER BY total_pendapatan DESC;
+
+-- Query Kasus-2
+SELECT
+    o.id_obat,
+    o.nama_obat,
+    SUM(dr.jumlah_obat) AS total_pemakaian,
+    o.harga_obat,
+    (SUM(dr.jumlah_obat) * o.harga_obat) AS estimasi_nilai_pemakaian
+FROM Detail_Resep dr
+JOIN Obat o 
+    ON dr.Obat_id_obat = o.id_obat
+GROUP BY 
+    o.id_obat,
+    o.nama_obat,
+    o.harga_obat
+ORDER BY 
+    total_pemakaian DESC;
+
+-- Query Kasus-3
+SELECT
+    p.id_perawat,
+    p.nama_perawat,
+    s.Jenis_Shift,
+    COUNT(j.id_jadwal) AS jumlah_jaga
+FROM Jadwal_Jaga j
+JOIN Perawat p 
+    ON j.Perawat_id_perawat = p.id_perawat
+JOIN Shift s 
+    ON j.Shift_id_shift = s.id_shift
+WHERE 
+    MONTH(j.tanggal_jaga) = MONTH(CURRENT_DATE())
+    AND YEAR(j.tanggal_jaga) = YEAR(CURRENT_DATE())
+GROUP BY 
+    p.id_perawat,
+    p.nama_perawat,
+    s.Jenis_Shift
+ORDER BY 
+    p.nama_perawat ASC,
+    s.Jenis_Shift ASC;
+
+-- Query Kasus-4
+SELECT
+	p.id_pasien,
+	p.nama_pasien,
+	a.nama_alergi,
+	ra.reaksi_alergi,
+	ra.tingkat_keparahan,
+	r.id_resep,
+	r.tanggal_resep
+FROM Pasien p
+JOIN Riwayat_Alergi ra
+	ON p.id_pasien = ra.Pasien_id_pasien
+JOIN Alergi a
+	ON ra.Alergi_id_alergi = a.id_alergi
+JOIN Registrasi reg
+	ON p.id_pasien = reg.Pasien_id_pasien
+JOIN Rekam_Medis rm
+	ON reg.id_registrasi = rm.Registrasi_id_registrasi
+JOIN Resep r
+	ON rm.id_rekam_medis = r.Rekam_Medis_id_rekam_medis
+WHERE
+	ra.status_alergi = 'Aktif'
+	AND a.nama_alergi = 'Nama_Alergi_Tertentu'
+ORDER BY
+	p.nama_pasien ASC,
+	r.tanggal_resep DESC;
+
+-- Query Kasus-5
 
 
